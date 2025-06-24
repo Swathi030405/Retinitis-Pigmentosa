@@ -11,20 +11,40 @@ from reportlab.pdfgen import canvas
 import base64
 import csv
 import os
+import gdown
+import requests
 
-@st.cache(allow_output_mutation=True)
+@st.cache_resource
+def download_models():
+    # Download retina_vs_nonretina.h5 from Google Drive
+    retina_drive_id = "1gc6UKCOY-eo5C9-9QbIT4Jo-0RRucXKl"
+    retina_model_path = "retina_vs_nonretina.h5"
+    if not os.path.exists(retina_model_path):
+        gdown.download(f"https://drive.google.com/uc?id={retina_drive_id}", retina_model_path, quiet=False)
+
+    # Download rp_detection_model.h5 from GitHub
+    rp_model_url = "https://raw.githubusercontent.com/Swathi030405/Retinitis-Pigmentosa/main/rp_detection_model.h5"  # 🔁 REPLACE THIS!
+    rp_model_path = "rp_detection_model.h5"
+    if not os.path.exists(rp_model_path):
+        response = requests.get(rp_model_url)
+        if response.status_code == 200:
+            with open(rp_model_path, "wb") as f:
+                f.write(response.content)
+        else:
+            st.error(f"Failed to download RP model. Status code: {response.status_code}")
+
+    return retina_model_path, rp_model_path
+
+@st.cache_resource
 def load_model_cached(path):
     try:
-        model = load_model(path)
-        return model
+        return load_model(path)
     except Exception as e:
-        st.error(f"Failed to load model from {path}: {e}")
+        st.error(f"❌ Failed to load model from {path}: {e}")
         return None
 
-# Relative paths (place these files in the same directory as app.py)
-retina_model_path = "retina_vs_nonretina.h5"
-rp_model_path = "rp_detection_model.h5"
-
+# Load models
+retina_model_path, rp_model_path = download_models()
 retina_model = load_model_cached(retina_model_path)
 rp_model = load_model_cached(rp_model_path)
 
@@ -39,7 +59,6 @@ if "scan_count" not in st.session_state:
 st.sidebar.markdown("### 📊 App Statistics")
 st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
 
-# Dummy accuracy graph
 st.sidebar.markdown("### 📈 Model Accuracy Graph")
 fig_acc, ax_acc = plt.subplots()
 epochs = list(range(1, 11))
@@ -132,7 +151,7 @@ if submit:
             ax.axis('equal')
             st.pyplot(fig)
 
-        # Generate PDF Report
+        # Generate PDF
         pdf_buffer = io.BytesIO()
         c = canvas.Canvas(pdf_buffer, pagesize=letter)
         c.setFont("Helvetica-Bold", 20)
