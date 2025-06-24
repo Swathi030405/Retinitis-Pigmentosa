@@ -12,7 +12,6 @@ import base64
 import csv
 import os
 import gdown
-import requests
 
 @st.cache_resource
 def download_models():
@@ -22,16 +21,11 @@ def download_models():
     if not os.path.exists(retina_model_path):
         gdown.download(f"https://drive.google.com/uc?id={retina_drive_id}", retina_model_path, quiet=False)
 
-    # Download rp_detection_model.h5 from GitHub
-    rp_model_url = "https://raw.githubusercontent.com/Swathi030405/Retinitis-Pigmentosa/main/rp_detection_model.h5"  # 🔁 REPLACE THIS!
+    # Download rp_detection_model.h5 from Google Drive
+    rp_drive_id = "1eZgrVcdMBtT3i7lVtZS7KwzBqordBL00"
     rp_model_path = "rp_detection_model.h5"
     if not os.path.exists(rp_model_path):
-        response = requests.get(rp_model_url)
-        if response.status_code == 200:
-            with open(rp_model_path, "wb") as f:
-                f.write(response.content)
-        else:
-            st.error(f"Failed to download RP model. Status code: {response.status_code}")
+        gdown.download(f"https://drive.google.com/uc?id={rp_drive_id}", rp_model_path, quiet=False)
 
     return retina_model_path, rp_model_path
 
