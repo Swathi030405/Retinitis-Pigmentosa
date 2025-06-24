@@ -15,17 +15,16 @@ import gdown
 
 @st.cache_resource
 def download_models():
-    # Download retina_vs_nonretina.h5 from Google Drive
+    # Google Drive file IDs for both models
     retina_drive_id = "1gc6UKCOY-eo5C9-9QbIT4Jo-0RRucXKl"
     retina_model_path = "retina_vs_nonretina.h5"
     if not os.path.exists(retina_model_path):
-        gdown.download(f"https://drive.google.com/uc?id={retina_drive_id}", retina_model_path, quiet=False)
+        gdown.download(f"https://drive.google.com/uc?id={retina_drive_id}&export=download", retina_model_path, quiet=False)
 
-    # Download rp_detection_model.h5 from Google Drive
     rp_drive_id = "1eZgrVcdMBtT3i7lVtZS7KwzBqordBL00"
     rp_model_path = "rp_detection_model.h5"
     if not os.path.exists(rp_model_path):
-        gdown.download(f"https://drive.google.com/uc?id={rp_drive_id}", rp_model_path, quiet=False)
+        gdown.download(f"https://drive.google.com/uc?id={rp_drive_id}&export=download", rp_model_path, quiet=False)
 
     return retina_model_path, rp_model_path
 
@@ -37,7 +36,7 @@ def load_model_cached(path):
         st.error(f"❌ Failed to load model from {path}: {e}")
         return None
 
-# Load models
+# Download and load models
 retina_model_path, rp_model_path = download_models()
 retina_model = load_model_cached(retina_model_path)
 rp_model = load_model_cached(rp_model_path)
@@ -145,7 +144,7 @@ if submit:
             ax.axis('equal')
             st.pyplot(fig)
 
-        # Generate PDF
+        # Generate PDF report
         pdf_buffer = io.BytesIO()
         c = canvas.Canvas(pdf_buffer, pagesize=letter)
         c.setFont("Helvetica-Bold", 20)
@@ -185,7 +184,7 @@ if submit:
         href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="RP_Report_{patient_id}.pdf">📥 Download PDF Report</a>'
         st.markdown(href, unsafe_allow_html=True)
 
-        # Save to CSV
+        # Save results to CSV
         csv_file = "rp_detection_results.csv"
         file_exists = os.path.isfile(csv_file)
         record = {
