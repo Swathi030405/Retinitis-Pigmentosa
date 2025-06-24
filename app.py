@@ -13,25 +13,40 @@ import csv
 import os
 import gdown
 
+st.set_page_config(page_title="Retinitis Pigmentosa Detection", layout="wide")
+
 @st.cache_resource
 def download_models():
-    # Google Drive file IDs for both models
-    retina_drive_id = "1gc6UKCOY-eo5C9-9QbIT4Jo-0RRucXKl"
-    retina_model_path = "retina_vs_nonretina.h5"
-    if not os.path.exists(retina_model_path):
-        gdown.download(f"https://drive.google.com/uc?id={retina_drive_id}&export=download", retina_model_path, quiet=False)
+    # Google Drive file IDs
+    retina_drive_id = "1gc6UKCOY-eo5C9-9QbIT4Jo-0RRucXKl"  # retina_vs_nonretina.h5
+    rp_drive_id = "1eZgrVcdMBtT3i7lVtZS7KwzBqordBL00"       # rp_detection_model.h5
 
-    rp_drive_id = "1eZgrVcdMBtT3i7lVtZS7KwzBqordBL00"
+    retina_model_path = "retina_vs_nonretina.h5"
     rp_model_path = "rp_detection_model.h5"
+
+    if not os.path.exists(retina_model_path):
+        st.info("Downloading retina_vs_nonretina.h5 model...")
+        gdown.download(f"https://drive.google.com/uc?id={retina_drive_id}&export=download", retina_model_path, quiet=False)
+    else:
+        st.success(f"{retina_model_path} already downloaded.")
+
     if not os.path.exists(rp_model_path):
+        st.info("Downloading rp_detection_model.h5 model...")
         gdown.download(f"https://drive.google.com/uc?id={rp_drive_id}&export=download", rp_model_path, quiet=False)
+    else:
+        st.success(f"{rp_model_path} already downloaded.")
+
+    # Check files
+    st.write("Files in current directory:", os.listdir())
 
     return retina_model_path, rp_model_path
 
 @st.cache_resource
 def load_model_cached(path):
     try:
-        return load_model(path)
+        model = load_model(path)
+        st.success(f"Model loaded successfully: {path}")
+        return model
     except Exception as e:
         st.error(f"❌ Failed to load model from {path}: {e}")
         return None
@@ -52,6 +67,7 @@ if "scan_count" not in st.session_state:
 st.sidebar.markdown("### 📊 App Statistics")
 st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
 
+# Accuracy graph (dummy data)
 st.sidebar.markdown("### 📈 Model Accuracy Graph")
 fig_acc, ax_acc = plt.subplots()
 epochs = list(range(1, 11))
@@ -84,7 +100,7 @@ if submit:
     if image_file is None:
         st.error("❌ Please upload an image.")
     elif retina_model is None or rp_model is None:
-        st.error("❌ Models not loaded. Check your model files.")
+        st.error("❌ Models not loaded. Please check your model files and download links.")
     else:
         st.session_state.scan_count += 1
         image = Image.open(image_file).convert("RGB")
@@ -144,7 +160,7 @@ if submit:
             ax.axis('equal')
             st.pyplot(fig)
 
-        # Generate PDF report
+        # Generate PDF
         pdf_buffer = io.BytesIO()
         c = canvas.Canvas(pdf_buffer, pagesize=letter)
         c.setFont("Helvetica-Bold", 20)
@@ -168,39 +184,38 @@ if submit:
         c.line(40, y, 570, y)
         y -= 20
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(40, y, "Diagnosis")
+        c.drawString(40, y, "Prediction Results")
         c.setFont("Helvetica", 11)
         y -= 20
-        c.drawString(50, y, f"Image Type Diagnosis: {image_diagnosis}")
+        c.drawString(50, y, f"Image Diagnosis: {image_diagnosis}")
         y -= 15
         c.drawString(50, y, f"Disease Status: {disease_diagnosis}")
         y -= 15
-        confidence_text = f"{rp_confidence:.2f}%" if disease_diagnosis not in ["Uncertain", "Not Applicable"] else "Uncertain/N/A"
-        c.drawString(50, y, f"Confidence: {confidence_text}")
-        c.showPage()
+        if disease_diagnosis not in ["Uncertain", "Not Applicable"]:
+            c.drawString(50, y, f"Confidence: {rp_confidence:.2f}%")
         c.save()
         pdf_buffer.seek(0)
+
         b64_pdf = base64.b64encode(pdf_buffer.read()).decode('utf-8')
-        href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="RP_Report_{patient_id}.pdf">📥 Download PDF Report</a>'
+        href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="RP_Report_{name}_{datetime.now().strftime("%Y%m%d%H%M%S")}.pdf">📄 Download Report PDF</a>'
         st.markdown(href, unsafe_allow_html=True)
 
-        # Save results to CSV
-        csv_file = "rp_detection_results.csv"
+        # Save to CSV
+        csv_file = "rp_report.csv"
         file_exists = os.path.isfile(csv_file)
-        record = {
-            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Patient Name": name,
-            "Patient ID": patient_id,
-            "Image Type Diagnosis": image_diagnosis,
-            "Disease Status": disease_diagnosis,
-            "Confidence": confidence_text,
-        }
-        try:
-            with open(csv_file, mode="a", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=record.keys())
-                if not file_exists:
-                    writer.writeheader()
-                writer.writerow(record)
-            st.success(f"✅ Results logged to {csv_file}")
-        except Exception as e:
-            st.error(f"Failed to log results: {e}")
+        with open(csv_file, mode="a", newline="") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow([
+                    "Timestamp", "Name", "DOB", "Age", "Blood Group", "Contact",
+                    "Gender", "Doctor", "Hospital", "Patient ID",
+                    "Image Diagnosis", "Disease Status", "Confidence"
+                ])
+            writer.writerow([
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, dob, age, blood_group, contact,
+                gender, doctor, hospital, patient_id,
+                image_diagnosis, disease_diagnosis, f"{rp_confidence:.2f}"
+            ])
+
+        st.success("✅ Report saved successfully!")
+
