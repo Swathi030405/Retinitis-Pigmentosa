@@ -36,9 +36,6 @@ def download_models():
     else:
         st.success(f"{rp_model_path} already downloaded.")
 
-    # Check files
-    st.write("Files in current directory:", os.listdir())
-
     return retina_model_path, rp_model_path
 
 @st.cache_resource
@@ -160,7 +157,7 @@ if submit:
             ax.axis('equal')
             st.pyplot(fig)
 
-        # Generate PDF
+        # Generate PDF report
         pdf_buffer = io.BytesIO()
         c = canvas.Canvas(pdf_buffer, pagesize=letter)
         c.setFont("Helvetica-Bold", 20)
@@ -218,4 +215,3 @@ if submit:
             ])
 
         st.success("✅ Report saved successfully!")
-
