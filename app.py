@@ -1,7 +1,6 @@
 import streamlit as st
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import load_model
 from PIL import Image
 import matplotlib.pyplot as plt
 import io
@@ -14,6 +13,7 @@ import os
 
 st.set_page_config(page_title="Retinitis Pigmentosa Detection", layout="wide")
 
+# Load TFLite model function
 @st.cache_resource
 def load_tflite_model(path):
     try:
@@ -25,21 +25,21 @@ def load_tflite_model(path):
         st.error(f"❌ Failed to load TFLite model {path}: {e}")
         return None
 
-@st.cache_resource
-def load_model_cached(path):
-    try:
-        model = load_model(path)
-        st.success(f"✅ H5 model loaded: {path}")
-        return model
-    except Exception as e:
-        st.error(f"❌ Failed to load model {path}: {e}")
-        return None
+# Predict function for TFLite model
+def tflite_predict(interpreter, input_data):
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+    interpreter.set_tensor(input_details[0]['index'], input_data)
+    interpreter.invoke()
+    output = interpreter.get_tensor(output_details[0]['index'])
+    return output
 
+# Paths for your TFLite models
 retina_tflite_path = "retina_vs_nonretina.tflite"
-rp_model_path = "rp_detection_model.h5"
+rp_tflite_path = "rp_detection_model.tflite"
 
 retina_model = load_tflite_model(retina_tflite_path)
-rp_model = load_model_cached(rp_model_path)
+rp_model = load_tflite_model(rp_tflite_path)
 
 class_names_rp = ['Healthy', 'Retinitis Pigmentosa']
 confidence_threshold = 60.0
@@ -94,6 +94,7 @@ if submit:
         image = Image.open(image_file).convert("RGB")
         st.image(image, caption="Uploaded Image", use_container_width=True)
 
+        # Preprocess input for models: resize and normalize
         image_resized = image.resize((224, 224))
         img_array = np.expand_dims(np.array(image_resized) / 255.0, axis=0).astype(np.float32)
 
@@ -103,18 +104,12 @@ if submit:
         rp_confidence = 0.0
         prob_rp, prob_healthy = 0.0, 0.0
 
-        # Step 1: Retina Detection
+        # Step 1: Retina Detection using TFLite model
         with st.spinner("🔍 Checking if the image is a retina..."):
             try:
-                input_details = retina_model.get_input_details()
-                output_details = retina_model.get_output_details()
-                retina_model.set_tensor(input_details[0]['index'], img_array)
-                retina_model.invoke()
-                retina_output = retina_model.get_tensor(output_details[0]['index'])[0][0]
-
+                retina_output = tflite_predict(retina_model, img_array)[0][0]
                 is_retina = retina_output < 0.5
                 retina_confidence = (1 - retina_output) * 100
-
                 if not is_retina:
                     st.warning(f"⚠️ Not a retina image (Confidence: {100 - retina_confidence:.2f}%)")
                 else:
@@ -124,12 +119,12 @@ if submit:
                 st.error(f"❌ Retina classification error: {e}")
                 st.stop()
 
-        # Step 2: RP Detection
+        # Step 2: RP Detection using TFLite model
         if image_diagnosis == "Retina":
             with st.spinner("🧠 Detecting Retinitis Pigmentosa..."):
                 try:
-                    prediction = rp_model.predict(img_array)[0][0]
-                    prob_rp = float(prediction)
+                    rp_output = tflite_predict(rp_model, img_array)[0][0]
+                    prob_rp = float(rp_output)
                     prob_healthy = 1 - prob_rp
                     rp_confidence = max(prob_rp, prob_healthy) * 100
 
@@ -143,20 +138,21 @@ if submit:
                     st.error(f"❌ RP prediction error: {e}")
                     st.stop()
 
+        # Results display
         st.markdown("## 🧾 Prediction Results")
         st.write(f"**Image Type Diagnosis:** {image_diagnosis}")
         st.write(f"**Disease Status:** {disease_diagnosis}")
         if disease_diagnosis not in ["Uncertain", "Not Applicable"]:
             st.write(f"**Confidence:** {rp_confidence:.2f}%")
 
-        # Pie chart
+        # Pie chart of RP prediction
         if image_diagnosis == "Retina" and disease_diagnosis not in ["Uncertain", "Not Applicable"]:
             fig, ax = plt.subplots()
             ax.pie([prob_healthy, prob_rp], labels=class_names_rp, colors=["green", "red"], autopct="%1.1f%%")
             ax.axis('equal')
             st.pyplot(fig)
 
-        # PDF report
+        # Generate PDF report
         pdf_buffer = io.BytesIO()
         c = canvas.Canvas(pdf_buffer, pagesize=letter)
         c.setFont("Helvetica-Bold", 20)
@@ -196,7 +192,7 @@ if submit:
         href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="RP_Report_{name}_{datetime.now().strftime("%Y%m%d%H%M%S")}.pdf">📄 Download Report PDF</a>'
         st.markdown(href, unsafe_allow_html=True)
 
-        # Save to CSV
+        # Save results to CSV
         csv_file = "rp_report.csv"
         file_exists = os.path.isfile(csv_file)
         with open(csv_file, mode="a", newline="") as f:
