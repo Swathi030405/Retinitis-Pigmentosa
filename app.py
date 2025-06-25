@@ -14,7 +14,6 @@ import os
 
 st.set_page_config(page_title="Retinitis Pigmentosa Detection", layout="wide")
 
-# Load TFLite model for retina detection
 @st.cache_resource
 def load_tflite_model(path):
     try:
@@ -26,7 +25,6 @@ def load_tflite_model(path):
         st.error(f"❌ Failed to load TFLite model {path}: {e}")
         return None
 
-# Load Keras model for RP detection
 @st.cache_resource
 def load_model_cached(path):
     try:
@@ -37,7 +35,6 @@ def load_model_cached(path):
         st.error(f"❌ Failed to load model {path}: {e}")
         return None
 
-# Paths
 retina_tflite_path = "retina_vs_nonretina.tflite"
 rp_model_path = "rp_detection_model.h5"
 
@@ -55,7 +52,7 @@ if "scan_count" not in st.session_state:
 st.sidebar.markdown("### 📊 App Statistics")
 st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
 
-# Dummy accuracy plot
+# Accuracy chart (dummy)
 st.sidebar.markdown("### 📈 Model Accuracy Graph")
 fig_acc, ax_acc = plt.subplots()
 epochs = list(range(1, 11))
@@ -70,6 +67,7 @@ ax_acc.set_title('Model Accuracy Over Epochs')
 ax_acc.legend()
 st.sidebar.pyplot(fig_acc)
 
+# Form
 with st.form("patient_form"):
     st.header("Patient Information")
     name = st.text_input("Name")
@@ -87,15 +85,17 @@ with st.form("patient_form"):
 if submit:
     if image_file is None:
         st.error("❌ Please upload an image.")
-    elif retina_model is None or rp_model is None:
-        st.error("❌ Model loading failed.")
+    elif retina_model is None:
+        st.error("❌ Retina classification model not loaded.")
+    elif rp_model is None:
+        st.error("❌ RP detection model not loaded.")
     else:
         st.session_state.scan_count += 1
         image = Image.open(image_file).convert("RGB")
         st.image(image, caption="Uploaded Image", use_container_width=True)
 
-        retina_img = image.resize((224, 224))
-        retina_arr = np.expand_dims(np.array(retina_img) / 255.0, axis=0).astype(np.float32)
+        image_resized = image.resize((224, 224))
+        img_array = np.expand_dims(np.array(image_resized) / 255.0, axis=0).astype(np.float32)
 
         image_diagnosis = "Unidentified"
         disease_diagnosis = "Not Applicable"
@@ -103,36 +103,36 @@ if submit:
         rp_confidence = 0.0
         prob_rp, prob_healthy = 0.0, 0.0
 
-        # Use TFLite interpreter for retina classification
+        # Step 1: Retina Detection
         with st.spinner("🔍 Checking if the image is a retina..."):
             try:
                 input_details = retina_model.get_input_details()
                 output_details = retina_model.get_output_details()
-                retina_model.set_tensor(input_details[0]['index'], retina_arr)
+                retina_model.set_tensor(input_details[0]['index'], img_array)
                 retina_model.invoke()
-                retina_pred = retina_model.get_tensor(output_details[0]['index'])[0][0]
+                retina_output = retina_model.get_tensor(output_details[0]['index'])[0][0]
 
-                retina_confidence = (1 - retina_pred) * 100
-                is_retina = retina_pred < 0.5
+                is_retina = retina_output < 0.5
+                retina_confidence = (1 - retina_output) * 100
+
                 if not is_retina:
-                    image_diagnosis = "Unidentified"
                     st.warning(f"⚠️ Not a retina image (Confidence: {100 - retina_confidence:.2f}%)")
                 else:
                     image_diagnosis = "Retina"
                     st.success(f"✅ Retina image confirmed (Confidence: {retina_confidence:.2f}%)")
             except Exception as e:
-                st.error(f"Retina classification error: {e}")
+                st.error(f"❌ Retina classification error: {e}")
+                st.stop()
 
+        # Step 2: RP Detection
         if image_diagnosis == "Retina":
-            rp_img = image.resize((224, 224))
-            rp_arr = np.expand_dims(np.array(rp_img) / 255.0, axis=0)
-
             with st.spinner("🧠 Detecting Retinitis Pigmentosa..."):
                 try:
-                    rp_pred = rp_model.predict(rp_arr)[0][0]
-                    prob_rp = float(rp_pred)
+                    prediction = rp_model.predict(img_array)[0][0]
+                    prob_rp = float(prediction)
                     prob_healthy = 1 - prob_rp
                     rp_confidence = max(prob_rp, prob_healthy) * 100
+
                     if rp_confidence < confidence_threshold:
                         disease_diagnosis = "Uncertain"
                         st.warning("⚠️ Prediction confidence is low.")
@@ -140,7 +140,8 @@ if submit:
                         disease_diagnosis = class_names_rp[1] if prob_rp > 0.5 else class_names_rp[0]
                         st.success(f"🧠 Disease Prediction: {disease_diagnosis} (Confidence: {rp_confidence:.2f}%)")
                 except Exception as e:
-                    st.error(f"RP prediction error: {e}")
+                    st.error(f"❌ RP prediction error: {e}")
+                    st.stop()
 
         st.markdown("## 🧾 Prediction Results")
         st.write(f"**Image Type Diagnosis:** {image_diagnosis}")
@@ -148,13 +149,14 @@ if submit:
         if disease_diagnosis not in ["Uncertain", "Not Applicable"]:
             st.write(f"**Confidence:** {rp_confidence:.2f}%")
 
+        # Pie chart
         if image_diagnosis == "Retina" and disease_diagnosis not in ["Uncertain", "Not Applicable"]:
             fig, ax = plt.subplots()
             ax.pie([prob_healthy, prob_rp], labels=class_names_rp, colors=["green", "red"], autopct="%1.1f%%")
             ax.axis('equal')
             st.pyplot(fig)
 
-        # Generate PDF report
+        # PDF report
         pdf_buffer = io.BytesIO()
         c = canvas.Canvas(pdf_buffer, pagesize=letter)
         c.setFont("Helvetica-Bold", 20)
