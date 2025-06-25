@@ -14,21 +14,34 @@ import os
 
 st.set_page_config(page_title="Retinitis Pigmentosa Detection", layout="wide")
 
+# Load TFLite model for retina detection
+@st.cache_resource
+def load_tflite_model(path):
+    try:
+        interpreter = tf.lite.Interpreter(model_path=path)
+        interpreter.allocate_tensors()
+        st.success(f"✅ TFLite model loaded: {path}")
+        return interpreter
+    except Exception as e:
+        st.error(f"❌ Failed to load TFLite model {path}: {e}")
+        return None
+
+# Load Keras model for RP detection
 @st.cache_resource
 def load_model_cached(path):
     try:
         model = load_model(path)
-        st.success(f"✅ Model loaded: {path}")
+        st.success(f"✅ H5 model loaded: {path}")
         return model
     except Exception as e:
         st.error(f"❌ Failed to load model {path}: {e}")
         return None
 
-# Load models directly from current directory
-retina_model_path = "retina_vs_nonretina.h5"
+# Paths
+retina_tflite_path = "retina_vs_nonretina.tflite"
 rp_model_path = "rp_detection_model.h5"
 
-retina_model = load_model_cached(retina_model_path)
+retina_model = load_tflite_model(retina_tflite_path)
 rp_model = load_model_cached(rp_model_path)
 
 class_names_rp = ['Healthy', 'Retinitis Pigmentosa']
@@ -60,7 +73,7 @@ st.sidebar.pyplot(fig_acc)
 with st.form("patient_form"):
     st.header("Patient Information")
     name = st.text_input("Name")
-    dob = st.date_input("Date of Birth", min_value=date(1950,1,1), max_value=date.today())
+    dob = st.date_input("Date of Birth", min_value=date(1950, 1, 1), max_value=date.today())
     age = st.number_input("Age", min_value=0, max_value=120, step=1)
     blood_group = st.text_input("Blood Group")
     contact = st.text_input("Contact Number")
@@ -75,14 +88,14 @@ if submit:
     if image_file is None:
         st.error("❌ Please upload an image.")
     elif retina_model is None or rp_model is None:
-        st.error("❌ Model loading failed. Please ensure the .h5 files are present.")
+        st.error("❌ Model loading failed.")
     else:
         st.session_state.scan_count += 1
         image = Image.open(image_file).convert("RGB")
         st.image(image, caption="Uploaded Image", use_container_width=True)
 
         retina_img = image.resize((224, 224))
-        retina_arr = np.expand_dims(np.array(retina_img) / 255.0, axis=0)
+        retina_arr = np.expand_dims(np.array(retina_img) / 255.0, axis=0).astype(np.float32)
 
         image_diagnosis = "Unidentified"
         disease_diagnosis = "Not Applicable"
@@ -90,9 +103,15 @@ if submit:
         rp_confidence = 0.0
         prob_rp, prob_healthy = 0.0, 0.0
 
+        # Use TFLite interpreter for retina classification
         with st.spinner("🔍 Checking if the image is a retina..."):
             try:
-                retina_pred = retina_model.predict(retina_arr)[0][0]
+                input_details = retina_model.get_input_details()
+                output_details = retina_model.get_output_details()
+                retina_model.set_tensor(input_details[0]['index'], retina_arr)
+                retina_model.invoke()
+                retina_pred = retina_model.get_tensor(output_details[0]['index'])[0][0]
+
                 retina_confidence = (1 - retina_pred) * 100
                 is_retina = retina_pred < 0.5
                 if not is_retina:
