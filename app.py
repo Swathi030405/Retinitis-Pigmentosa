@@ -11,45 +11,23 @@ from reportlab.pdfgen import canvas
 import base64
 import csv
 import os
-import gdown
 
 st.set_page_config(page_title="Retinitis Pigmentosa Detection", layout="wide")
-
-@st.cache_resource
-def download_models():
-    # Google Drive file IDs
-    retina_drive_id = "1gc6UKCOY-eo5C9-9QbIT4Jo-0RRucXKl"  # retina_vs_nonretina.h5
-    rp_drive_id = "1eZgrVcdMBtT3i7lVtZS7KwzBqordBL00"       # rp_detection_model.h5
-
-    retina_model_path = "retina_vs_nonretina.h5"
-    rp_model_path = "rp_detection_model.h5"
-
-    if not os.path.exists(retina_model_path):
-        st.info("Downloading retina_vs_nonretina.h5 model...")
-        gdown.download(f"https://drive.google.com/uc?id={retina_drive_id}&export=download", retina_model_path, quiet=False)
-    else:
-        st.success(f"{retina_model_path} already downloaded.")
-
-    if not os.path.exists(rp_model_path):
-        st.info("Downloading rp_detection_model.h5 model...")
-        gdown.download(f"https://drive.google.com/uc?id={rp_drive_id}&export=download", rp_model_path, quiet=False)
-    else:
-        st.success(f"{rp_model_path} already downloaded.")
-
-    return retina_model_path, rp_model_path
 
 @st.cache_resource
 def load_model_cached(path):
     try:
         model = load_model(path)
-        st.success(f"Model loaded successfully: {path}")
+        st.success(f"✅ Model loaded: {path}")
         return model
     except Exception as e:
-        st.error(f"❌ Failed to load model from {path}: {e}")
+        st.error(f"❌ Failed to load model {path}: {e}")
         return None
 
-# Download and load models
-retina_model_path, rp_model_path = download_models()
+# Load models directly from current directory
+retina_model_path = "retina_vs_nonretina.h5"
+rp_model_path = "rp_detection_model.h5"
+
 retina_model = load_model_cached(retina_model_path)
 rp_model = load_model_cached(rp_model_path)
 
@@ -64,7 +42,7 @@ if "scan_count" not in st.session_state:
 st.sidebar.markdown("### 📊 App Statistics")
 st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
 
-# Accuracy graph (dummy data)
+# Dummy accuracy plot
 st.sidebar.markdown("### 📈 Model Accuracy Graph")
 fig_acc, ax_acc = plt.subplots()
 epochs = list(range(1, 11))
@@ -97,7 +75,7 @@ if submit:
     if image_file is None:
         st.error("❌ Please upload an image.")
     elif retina_model is None or rp_model is None:
-        st.error("❌ Models not loaded. Please check your model files and download links.")
+        st.error("❌ Model loading failed. Please ensure the .h5 files are present.")
     else:
         st.session_state.scan_count += 1
         image = Image.open(image_file).convert("RGB")
