@@ -71,21 +71,6 @@ st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
 
 # --- Accuracy Chart (ends at 96.7%) ---
 st.sidebar.markdown("### 📈 Model Accuracy Graph")
-fig_acc, ax_acc = plt.subplots()
-epochs = list(range(1, 11))
-train_acc = [0.89, 0.91, 0.93, 0.94, 0.947, 0.954, 0.96, 0.964, 0.966, 0.967]
-val_acc =   [0.88, 0.90, 0.925, 0.935, 0.942, 0.95, 0.957, 0.961, 0.965, 0.967]
-ax_acc.plot(epochs, train_acc, label='Training Accuracy', marker='o')
-ax_acc.plot(epochs, val_acc, label='Validation Accuracy', marker='o')
-ax_acc.set_ylim(0.85, 1.0)
-ax_acc.set_xlabel('Epoch')
-ax_acc.set_ylabel('Accuracy')
-ax_acc.set_title('Model Accuracy Over Epochs')
-ax_acc.legend()
-st.sidebar.pyplot(fig_acc)
-
-st.sidebar.markdown("### 📈 Model Accuracy ")
-
 fig_acc, ax_acc = plt.subplots(figsize=(4, 3))
 
 epochs = list(range(1, 11))
