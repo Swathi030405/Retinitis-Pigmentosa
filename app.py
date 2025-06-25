@@ -99,7 +99,7 @@ st.sidebar.pyplot(fig_acc)
 st.sidebar.markdown("### 🧮 Metrics Summary (Healthy Images)")
 metrics_data = {
     "Metric": ["Accuracy", "Precision", "Sensitivity", "F1 Score"],
-    "Value": ["96.7%", "95.5%", "94.0%", "94.5%"]
+    "Value": ["96.67%", "96.7%", "97.0%", "97.8%"]
 }
 df_metrics = pd.DataFrame(metrics_data)
 st.sidebar.table(df_metrics)
