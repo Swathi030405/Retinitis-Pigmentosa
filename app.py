@@ -10,19 +10,46 @@ from reportlab.pdfgen import canvas
 import base64
 import csv
 import os
+import sys
+from pathlib import Path
 
 st.set_page_config(page_title="Retinitis Pigmentosa Detection", layout="wide")
+
+# --- FIXED MODEL PATHS ---
+def get_base_path():
+    """Get absolute path to base directory (works for .py and Streamlit)"""
+    try:
+        # When running as script
+        return Path(__file__).parent
+    except NameError:
+        # When running in Streamlit
+        return Path.cwd()
+
+BASE_PATH = get_base_path()
+RETINA_MODEL_PATH = BASE_PATH / "retina_vs_nonretina.tflite"
+RP_MODEL_PATH = BASE_PATH / "rp_detection_model.tflite"
+
+# Debug: Verify paths (remove after confirmation)
+st.sidebar.markdown("### Debug Info")
+st.sidebar.write(f"Base path: `{BASE_PATH}`")
+st.sidebar.write(f"Retina model exists: `{RETINA_MODEL_PATH.exists()}`")
+st.sidebar.write(f"RP model exists: `{RP_MODEL_PATH.exists()}`")
 
 # Load TFLite model function
 @st.cache_resource
 def load_tflite_model(path):
     try:
-        interpreter = tf.lite.Interpreter(model_path=path)
+        # Verify file exists before loading
+        if not path.exists():
+            st.error(f"❌ Model file not found: {path}")
+            return None
+            
+        interpreter = tf.lite.Interpreter(model_path=str(path))
         interpreter.allocate_tensors()
-        st.success(f"✅ TFLite model loaded: {path}")
+        st.success(f"✅ TFLite model loaded: {path.name}")
         return interpreter
     except Exception as e:
-        st.error(f"❌ Failed to load TFLite model {path}: {e}")
+        st.error(f"❌ Failed to load TFLite model: {e}")
         return None
 
 # Predict function for TFLite model
@@ -35,11 +62,11 @@ def tflite_predict(interpreter, input_data):
     return output
 
 # Paths for your TFLite models
-retina_tflite_path = "retina_vs_nonretina.tflite"
-rp_tflite_path = "rp_detection_model.tflite"
+retina_tflite_path = "./retina_vs_nonretina.tflite"
+rp_tflite_path = "./rp_detection_model.tflite"
 
-retina_model = load_tflite_model(retina_tflite_path)
-rp_model = load_tflite_model(rp_tflite_path)
+retina_model = load_tflite_model(RETINA_MODEL_PATH)
+rp_model = load_tflite_model(RP_MODEL_PATH)
 
 class_names_rp = ['Healthy', 'Retinitis Pigmentosa']
 confidence_threshold = 60.0
