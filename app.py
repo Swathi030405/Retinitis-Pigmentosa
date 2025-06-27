@@ -73,7 +73,7 @@ st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
 
 # --- Accuracy Chart (ends at 96.7%) ---
 
-st.sidebar.markdown("### 📈 Model Accuracy Graph (50 Epochs)")
+st.sidebar.markdown("### 📈 Model Accuracy Graph ")
 fig_acc, ax_acc = plt.subplots(figsize=(4.5, 3.5))
 
 epochs = list(range(1, 51))
