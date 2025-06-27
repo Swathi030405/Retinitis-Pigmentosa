@@ -92,7 +92,7 @@ ax_acc.set_ylim(0.95, 1.0)
 ax_acc.set_xlim(1, 50)
 ax_acc.set_xlabel('Epoch')
 ax_acc.set_ylabel('Accuracy')
-ax_acc.set_title('Model Accuracy Over 50 Epochs')
+ax_acc.set_title('Model Accuracy')
 ax_acc.legend()
 ax_acc.grid(True)
 
