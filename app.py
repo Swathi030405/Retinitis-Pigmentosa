@@ -24,7 +24,7 @@ def get_base_path():
 
 BASE_PATH = get_base_path()
 RETINA_MODEL_PATH = BASE_PATH / "retina_vs_nonretina.tflite"
-DISEASE10_MODEL_PATH = BASE_PATH / "disease10_model.tflite"
+DISEASE10_MODEL_PATH = BASE_PATH / "healthy_vs_disease_model.tflite"
 RP_MODEL_PATH = BASE_PATH / "rp_detection_model.tflite"
 
 # Debug info
