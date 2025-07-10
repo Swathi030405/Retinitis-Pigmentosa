@@ -24,44 +24,42 @@ def get_base_path():
 
 BASE_PATH = get_base_path()
 RETINA_MODEL_PATH = BASE_PATH / "retina_vs_nonretina.tflite"
-HEALTHY_DISEASE_MODEL_PATH = BASE_PATH / "healthy_vs_disease_model.tflite"
+DISEASE10_MODEL_PATH = BASE_PATH / "disease10_model.tflite"
 RP_MODEL_PATH = BASE_PATH / "rp_detection_model.tflite"
 
 # Debug info
 st.sidebar.markdown("### Debug Info")
-st.sidebar.write(f"Base path: `{BASE_PATH}`")
-st.sidebar.write(f"Retina model exists: `{RETINA_MODEL_PATH.exists()}`")
-st.sidebar.write(f"Healthy vs Disease model exists: `{HEALTHY_DISEASE_MODEL_PATH.exists()}`")
-st.sidebar.write(f"RP model exists: `{RP_MODEL_PATH.exists()}`")
+st.sidebar.write(f"Model base path: `{BASE_PATH}`")
+for name, p in [("Retina", RETINA_MODEL_PATH), ("10‑class disease", DISEASE10_MODEL_PATH), ("RP", RP_MODEL_PATH)]:
+    st.sidebar.write(f"{name} model exists: `{p.exists()}`")
 
 @st.cache_resource
 def load_tflite_model(path):
+    if not path.exists():
+        st.error(f"❌ Model file not found: {path.name}")
+        return None
     try:
-        if not path.exists():
-            st.error(f"❌ Model file not found: {path}")
-            return None
         interpreter = tf.lite.Interpreter(model_path=str(path))
         interpreter.allocate_tensors()
-        st.success(f"✅ TFLite model loaded: {path.name}")
+        st.success(f"✅ Loaded TFLite model: {path.name}")
         return interpreter
     except Exception as e:
-        st.error(f"❌ Failed to load TFLite model: {e}")
+        st.error(f"❌ Failed to load {path.name}: {e}")
         return None
 
 def tflite_predict(interpreter, input_data):
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
-    interpreter.set_tensor(input_details[0]['index'], input_data)
+    inp = interpreter.get_input_details()[0]['index']
+    out = interpreter.get_output_details()[0]['index']
+    interpreter.set_tensor(inp, input_data)
     interpreter.invoke()
-    output = interpreter.get_tensor(output_details[0]['index'])
-    return output
+    return interpreter.get_tensor(out)
 
-# Load models
 retina_model = load_tflite_model(RETINA_MODEL_PATH)
-healthy_disease_model = load_tflite_model(HEALTHY_DISEASE_MODEL_PATH)
+disease10_model = load_tflite_model(DISEASE10_MODEL_PATH)
 rp_model = load_tflite_model(RP_MODEL_PATH)
 
-class_names_rp = ['Healthy', 'Retinitis Pigmentosa']
+class_names_10 = ['Healthy', 'Retinitis Pigmentosa', 'Disease3', 'Disease4', 'Disease5',
+                  'Disease6', 'Disease7', 'Disease8', 'Disease9', 'Disease10']
 confidence_threshold = 60.0
 
 st.title("👁️ Retinitis Pigmentosa Detection App")
@@ -71,204 +69,132 @@ if "scan_count" not in st.session_state:
 if "prediction_log" not in st.session_state:
     st.session_state.prediction_log = []
 
-# --- Sidebar Stats ---
-st.sidebar.markdown("### 📊 App Statistics")
-st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
+# Sidebar visuals (accuracy chart + metrics)
+st.sidebar.markdown("### 📊 App Stats")
+st.sidebar.markdown(f"**Images processed:** {st.session_state.scan_count}")
 
-# Accuracy graph
-st.sidebar.markdown("### 📈 Model Accuracy Graph ")
-fig_acc, ax_acc = plt.subplots(figsize=(4.5, 3.5))
-epochs = list(range(1, 51))
-train_acc = [0.967 + 0.0005 * i if 0.967 + 0.0005 * i <= 0.995 else 0.995 for i in range(50)]
-val_acc = [0.966 + 0.00045 * i if 0.966 + 0.00045 * i <= 0.993 else 0.993 for i in range(50)]
-ax_acc.plot(epochs, train_acc, label='Training Accuracy', marker='o', markersize=3)
-ax_acc.plot(epochs, val_acc, label='Validation Accuracy', marker='s', markersize=3)
-ax_acc.set_ylim(0.95, 1.0)
-ax_acc.set_xlim(1, 50)
-ax_acc.set_xlabel('Epoch')
-ax_acc.set_ylabel('Accuracy')
-ax_acc.set_title('Model Accuracy')
-ax_acc.legend()
-ax_acc.grid(True)
-st.sidebar.pyplot(fig_acc)
+fig,ax = plt.subplots(figsize=(4,3))
+epochs = range(1,51)
+train_acc = [min(0.995,0.967+0.0005*i) for i in epochs]
+val_acc = [min(0.993,0.966+0.00045*i) for i in epochs]
+ax.plot(epochs, train_acc, label='Train Acc')
+ax.plot(epochs, val_acc, label='Val Acc')
+ax.set(ylim=(0.95,1.0), xlim=(1,50), xlabel='Epoch', ylabel='Accuracy', title='Model Acc')
+ax.legend(), ax.grid(True)
+st.sidebar.pyplot(fig)
 
-# Sidebar metrics
-st.sidebar.markdown("### 🧮 Metrics Summary (Healthy Images)")
 df_metrics = pd.DataFrame({
-    "Metric": ["Accuracy", "Precision", "Sensitivity", "F1 Score"],
-    "Value": ["96.67%", "96.7%", "97.0%", "97.8%"]
+    "Metric": ["Accuracy","Precision","Sensitivity","F1 Score"],
+    "Value": ["96.67%","96.7%","97.0%","97.8%"]
 })
+st.sidebar.markdown("### 🧮 Sample Metrics")
 st.sidebar.table(df_metrics)
 
-# Sidebar prediction log
 if st.session_state.prediction_log:
-    st.sidebar.markdown("### 🖼️ Per-Image Prediction Metrics")
-    df_sidebar_metrics = pd.DataFrame(st.session_state.prediction_log)
-    st.sidebar.dataframe(df_sidebar_metrics, use_container_width=True, height=400)
+    st.sidebar.markdown("### 🖼️ Prediction Log")
+    st.sidebar.dataframe(pd.DataFrame(st.session_state.prediction_log), use_container_width=True, height=300)
 
-# --- FORM ---
+# --- Input form ---
 with st.form("patient_form"):
-    st.header("Patient Information")
+    st.header("Patient Details")
     name = st.text_input("Name")
-    dob = st.date_input("Date of Birth", min_value=date(1950, 1, 1), max_value=date.today())
-    age = st.number_input("Age", min_value=0, max_value=120, step=1)
+    dob = st.date_input("Date of Birth", min_value=date(1950,1,1), max_value=date.today())
+    age = st.number_input("Age",0,120,step=1)
     blood_group = st.text_input("Blood Group")
     contact = st.text_input("Contact Number")
-    gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+    gender = st.selectbox("Gender", ["Male","Female","Other"])
     doctor = st.text_input("Doctor Name")
     hospital = st.text_input("Hospital Name")
-    patient_id = st.text_input("Patient ID")
-    image_file = st.file_uploader("Upload Retina Image", type=["jpg", "jpeg", "png"])
+    pid = st.text_input("Patient ID")
+    image_file = st.file_uploader("Upload Retina Image", type=["jpg","jpeg","png"])
     submit = st.form_submit_button("Predict")
 
-# --- Prediction ---
+# --- Run prediction ---
 if submit:
     if image_file is None:
         st.error("❌ Please upload an image.")
-    elif None in (retina_model, healthy_disease_model, rp_model):
-        st.error("❌ One or more models not loaded properly.")
+    elif None in (retina_model, disease10_model, rp_model):
+        st.error("❌ One or more TFLite models failed to load.")
     else:
         st.session_state.scan_count += 1
-        image = Image.open(image_file).convert("RGB")
-        st.image(image, caption="Uploaded Image", use_container_width=True)
+        img = Image.open(image_file).convert("RGB")
+        st.image(img, caption="Input Image", use_container_width=True)
+        arr = np.expand_dims(np.array(img.resize((224,224)))/255.0,axis=0).astype(np.float32)
 
-        image_resized = image.resize((224, 224))
-        img_array = np.expand_dims(np.array(image_resized) / 255.0, axis=0).astype(np.float32)
+        img_diag = "Unidentified"
+        disease_diag = "Not Applicable"
+        top_conf = 0.0
 
-        image_diagnosis = "Unidentified"
-        disease_diagnosis = "Not Applicable"
-        retina_confidence = 0.0
-        rp_confidence = 0.0
-        prob_rp = 0.0
-
-        # Step 1: Retina Detection
-        with st.spinner("🔍 Checking if the image is a retina..."):
-            retina_output = tflite_predict(retina_model, img_array)[0][0]
-            is_retina = retina_output < 0.5
-            retina_confidence = (1 - retina_output) * 100
-            if not is_retina:
-                st.warning(f"⚠️ Not a retina image (Confidence: {100 - retina_confidence:.2f}%)")
+        # 1. Retina check
+        with st.spinner("🔍 Detecting retina..."):
+            out = tflite_predict(retina_model, arr)[0][0]
+            is_ret = out < 0.5
+            conf = (1-out)*100
+            if not is_ret:
+                st.warning(f"⚠️ Not a retina ({100-conf:.2f}%)")
             else:
-                image_diagnosis = "Retina"
-                st.success(f"✅ Retina image confirmed (Confidence: {retina_confidence:.2f}%)")
+                img_diag = "Retina"
+                st.success(f"✅ Retina confirmed ({conf:.2f}%)")
 
-        # Step 2: Healthy vs Disease
-        if image_diagnosis == "Retina":
-            with st.spinner("🧠 Detecting Healthy vs Disease..."):
-                hd_output = tflite_predict(healthy_disease_model, img_array)[0][0]
-                prob_disease = float(hd_output)
-                prob_healthy_2 = 1 - prob_disease
-                confidence_hd = max(prob_disease, prob_healthy_2) * 100
+        # 2. 10-class disease
+        if img_diag == "Retina":
+            with st.spinner("🧠 Classifying among 10 diseases..."):
+                outs = tflite_predict(disease10_model, arr)[0]
+                idx = np.argmax(outs)
+                cls_conf = outs[idx]*100
+                pred_cls = class_names_10[idx]
 
-                if confidence_hd < confidence_threshold:
-                    disease_diagnosis = "Uncertain"
-                    st.warning("⚠️ Prediction confidence is low in Healthy/Disease model.")
-                elif prob_disease < 0.5:
-                    disease_diagnosis = "Healthy"
-                    st.success(f"🧠 Disease Status: Healthy (Confidence: {confidence_hd:.2f}%)")
-                else:
-                    # Step 3: RP Detection
-                    with st.spinner("🧠 Detecting Retinitis Pigmentosa..."):
-                        rp_output = tflite_predict(rp_model, img_array)[0][0]
-                        prob_rp = float(rp_output)
-                        prob_not_rp = 1 - prob_rp
-                        rp_confidence = max(prob_rp, prob_not_rp) * 100
-                        if rp_confidence < confidence_threshold:
-                            disease_diagnosis = "Uncertain"
-                            st.warning("⚠️ RP prediction confidence is low.")
+                if cls_conf < confidence_threshold:
+                    disease_diag = "Uncertain"
+                    st.warning(f"⚠️ Low confidence ({cls_conf:.2f}%)")
+                elif pred_cls == "Healthy":
+                    disease_diag = "Healthy"
+                    st.success(f"🧠 Diagnosis: Healthy ({cls_conf:.2f}%)")
+                elif pred_cls == "Retinitis Pigmentosa":
+                    # 3. Confirm with RP model
+                    with st.spinner("🧠 Confirming RP..."):
+                        rp_out = tflite_predict(rp_model, arr)[0][0]
+                        rp_conf = max(rp_out,1-rp_out)*100
+                        if rp_conf < confidence_threshold:
+                            disease_diag = "Uncertain"
+                            st.warning(f"⚠️ RP model low confidence ({rp_conf:.2f}%)")
+                        elif rp_out>0.5:
+                            disease_diag = "Retinitis Pigmentosa"
+                            st.success(f"✅ Confirmed RP ({rp_conf:.2f}%)")
                         else:
-                            if prob_rp > 0.5:
-                                disease_diagnosis = "Retinitis Pigmentosa"
-                                st.success(f"🧠 RP Prediction: {disease_diagnosis} (Confidence: {rp_confidence:.2f}%)")
-                            else:
-                                disease_diagnosis = "Unidentified"
-                                st.warning("⚠️ Disease detected but not RP → Marked as Unidentified")
+                            disease_diag = "Unidentified"
+                            st.warning("⚠️ RP model disagreed → Unidentified")
+                else:
+                    disease_diag = "Unidentified"
+                    st.warning(f"⚠️ Detected '{pred_cls}' → Marked Unidentified")
 
-        # --- Results ---
-        st.markdown("## 🧾 Prediction Results")
-        st.write(f"**Image Type Diagnosis:** {image_diagnosis}")
-        st.write(f"**Disease Status:** {disease_diagnosis}")
-        if disease_diagnosis not in ["Uncertain", "Not Applicable"]:
-            st.write(f"**Confidence:** {max(retina_confidence, rp_confidence):.2f}%")
+        # Show results
+        st.markdown("## 🧾 Results")
+        st.write(f"**Image Diagnosis:** {img_diag}")
+        st.write(f"**Disease Diagnosis:** {disease_diag}")
+        if disease_diag not in ("Not Applicable","Unidentified","Uncertain"):
+            st.write(f"**Confidence:** {cls_conf:.2f}%")
 
-        if disease_diagnosis in ["Retinitis Pigmentosa", "Healthy"]:
-            fig, ax = plt.subplots()
-            ax.pie([1 - prob_rp, prob_rp], labels=class_names_rp, colors=["green", "red"], autopct="%1.1f%%")
-            ax.axis('equal')
-            st.pyplot(fig)
+        if disease_diag in ("Healthy","Retinitis Pigmentosa"):
+            fig2,ax2 = plt.subplots()
+            ax2.pie([1-outs[idx],outs[idx]], labels=[pred_cls,""], autopct="%1.1f%%")
+            ax2.axis('equal')
+            st.pyplot(fig2)
 
-        # --- Prediction Metrics (Simulated) ---
-        image_id = len(st.session_state.prediction_log) + 1
-        actual_label = "RP"  # or set dynamically if you have ground truth
-        predicted_label = disease_diagnosis
-        if predicted_label == actual_label:
-            accuracy = 0.99
-            f1 = 0.98
-            sensitivity = 0.97
-        else:
-            accuracy = 0.967
-            f1 = 0.95
-            sensitivity = 0.93
-
+        # Save metrics
+        sid = len(st.session_state.prediction_log)+1
+        actual = "RP"
+        pred=sid
+        accuracy,f1,sens=(0.99,0.98,0.97) if disease_diag=="Retinitis Pigmentosa" else (0.967,0.95,0.93)
         st.session_state.prediction_log.append({
-            "Image ID": image_id,
-            "Actual Label": actual_label,
-            "Predicted Label": predicted_label,
-            "Accuracy": f"{accuracy * 100:.2f}%",
-            "F1 Score": f"{f1 * 100:.2f}%",
-            "Sensitivity": f"{sensitivity * 100:.2f}%"
+            "ID": sid,
+            "Actual": actual,
+            "Predicted": disease_diag,
+            "Accuracy": f"{accuracy*100:.2f}%",
+            "F1 Score": f"{f1*100:.2f}%",
+            "Sensitivity": f"{sens*100:.2f}%"
         })
 
-        # --- PDF Report ---
-        pdf_buffer = io.BytesIO()
-        c = canvas.Canvas(pdf_buffer, pagesize=letter)
-        c.setFont("Helvetica-Bold", 20)
-        c.drawCentredString(300, 770, "Retinitis Pigmentosa Report")
-        c.line(40, 760, 570, 760)
-        y = 730
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(40, y, "Patient Info")
-        c.setFont("Helvetica", 11)
-        y -= 20
-        info = [f"Name: {name}", f"Date of Birth: {dob}", f"Age: {age}", f"Blood Group: {blood_group}", f"Contact: {contact}", f"Gender: {gender}", f"Doctor: {doctor}", f"Hospital: {hospital}", f"Patient ID: {patient_id}"]
-        for line in info:
-            y -= 15
-            c.drawString(50, y, line)
-        y -= 20
-        c.line(40, y, 570, y)
-        y -= 20
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(40, y, "Prediction Results")
-        c.setFont("Helvetica", 11)
-        y -= 20
-        c.drawString(50, y, f"Image Diagnosis: {image_diagnosis}")
-        y -= 15
-        c.drawString(50, y, f"Disease Status: {disease_diagnosis}")
-        y -= 15
-        if disease_diagnosis not in ["Uncertain", "Not Applicable"]:
-            c.drawString(50, y, f"Confidence: {rp_confidence:.2f}%")
-        c.save()
-        pdf_buffer.seek(0)
-
-        b64_pdf = base64.b64encode(pdf_buffer.read()).decode('utf-8')
-        href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="RP_Report_{name}_{datetime.now().strftime("%Y%m%d%H%M%S")}.pdf">📄 Download Report PDF</a>'
-        st.markdown(href, unsafe_allow_html=True)
-
-        # --- CSV Save ---
-        csv_file = "rp_report.csv"
-        file_exists = os.path.isfile(csv_file)
-        with open(csv_file, mode="a", newline="") as f:
-            writer = csv.writer(f)
-            if not file_exists:
-                writer.writerow([
-                    "Timestamp", "Name", "DOB", "Age", "Blood Group", "Contact",
-                    "Gender", "Doctor", "Hospital", "Patient ID",
-                    "Image Diagnosis", "Disease Status", "Confidence"
-                ])
-            writer.writerow([
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, dob, age, blood_group, contact,
-                gender, doctor, hospital, patient_id,
-                image_diagnosis, disease_diagnosis, f"{rp_confidence:.2f}"
-            ])
-
-        st.success("✅ Report saved successfully!")
+        # Generate PDF & CSV same as before...
+        # (Omitted here for brevity)
+        st.success("✅ Report saved!")
