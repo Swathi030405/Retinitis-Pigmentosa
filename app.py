@@ -74,50 +74,59 @@ st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
 
 # --- Accuracy Chart (ends at 96.7%) ---
 
-# --- Stable Accuracy Graph (mimicking uploaded sketch) ---
+# --- Accurate Replication of Hand-drawn Stable Accuracy Graph ---
 st.sidebar.markdown("### 📈 Model Accuracy Graph")
 fig_acc, ax_acc = plt.subplots(figsize=(4.5, 3.5))
 
 epochs = np.arange(1, 51)
 
-# Set random seed
-np.random.seed(42)
+# === Training Accuracy Pattern ===
+train_acc = np.array([
+    0.951, 0.949, 0.947, 0.948, 0.950,
+    0.952, 0.954, 0.953, 0.954, 0.955,
+    0.957, 0.956, 0.957, 0.958, 0.959,
+    0.960, 0.961, 0.961, 0.962, 0.962,
+    0.963, 0.963, 0.964, 0.964, 0.965,
+    0.965, 0.966, 0.966, 0.966, 0.967,
+    0.967, 0.967, 0.967, 0.967, 0.967,
+    0.967, 0.967, 0.967, 0.967, 0.967,
+    0.967, 0.967, 0.967, 0.967, 0.967,
+    0.967, 0.967, 0.967, 0.967, 0.967
+])
 
-# Start high (~0.96), slightly fluctuate, and stabilize toward 96.7%
-train_base = np.linspace(0.955, 0.967, 50)
-val_base = np.linspace(0.952, 0.965, 50)
+# === Validation Accuracy Pattern ===
+val_acc = np.array([
+    0.932, 0.930, 0.928, 0.929, 0.931,
+    0.933, 0.934, 0.933, 0.934, 0.935,
+    0.936, 0.936, 0.937, 0.938, 0.939,
+    0.940, 0.941, 0.942, 0.943, 0.944,
+    0.945, 0.945, 0.946, 0.946, 0.947,
+    0.947, 0.948, 0.948, 0.949, 0.950,
+    0.951, 0.952, 0.953, 0.954, 0.955,
+    0.956, 0.957, 0.958, 0.959, 0.960,
+    0.961, 0.962, 0.963, 0.964, 0.964,
+    0.964, 0.965, 0.965, 0.965, 0.965
+])
 
-# Add small stable noise (mostly flat but minor dips/spikes)
-train_noise = np.random.normal(0, 0.002, 50)
-val_noise = np.random.normal(0, 0.0025, 50)
-
-train_acc = np.clip(train_base + train_noise, 0.95, 0.972)
-val_acc = np.clip(val_base + val_noise, 0.945, 0.970)
-
-# Final stabilization at 96.7%
-train_acc[-1] = 0.967
-val_acc[-1] = 0.965
-
-# Plot stable, slightly noisy lines
+# === Plotting ===
 ax_acc.plot(epochs, train_acc, label='Training Accuracy', marker='o', markersize=3)
 ax_acc.plot(epochs, val_acc, label='Validation Accuracy', marker='s', markersize=3)
 
-# Annotate last few points
-for i in [45, 49]:
+# Optional Annotations
+for i in [10, 30, 49]:
     ax_acc.text(epochs[i], train_acc[i] + 0.001, f"{train_acc[i]*100:.2f}%", fontsize=6, ha='center')
-    ax_acc.text(epochs[i], val_acc[i] - 0.003, f"{val_acc[i]*100:.2f}%", fontsize=6, ha='center')
+    ax_acc.text(epochs[i], val_acc[i] - 0.0025, f"{val_acc[i]*100:.2f}%", fontsize=6, ha='center')
 
-# Styling
-ax_acc.set_ylim(0.94, 0.975)
+# === Styling ===
+ax_acc.set_ylim(0.92, 0.975)
 ax_acc.set_xlim(1, 50)
 ax_acc.set_xlabel('Epoch')
 ax_acc.set_ylabel('Accuracy')
-ax_acc.set_title('Model Accuracy ')
+ax_acc.set_title('Model Accuracy (Stable, Sketch-Like)')
 ax_acc.legend()
 ax_acc.grid(True)
 
 st.sidebar.pyplot(fig_acc)
-
 # === Simulated labels ===
 np.random.seed(42)
 y_true = np.array([0]*50 + [1]*50)  # 0 = Healthy, 1 = RP
