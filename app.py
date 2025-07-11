@@ -123,20 +123,24 @@ ax_acc.grid(True)
 
 st.sidebar.pyplot(fig_acc)
 
-# === Simulated labels and predicted probabilities ===
+# === Simulated predictions: curve-like ROC (starts ~0.2 TPR) ===
 np.random.seed(42)
 y_true = np.array([0]*50 + [1]*50)
-y_probs = np.concatenate([
-    np.random.uniform(0.0, 0.3, 50),   # Healthy
-    np.random.uniform(0.7, 1.0, 50)    # RP
-])
 
-# === Compute ROC curve and AUC ===
+# Healthy probs: low confidence (spread out)
+healthy_probs = np.sort(np.random.uniform(0.0, 0.4, 50))[::-1]  # Descending to keep TPR low initially
+
+# RP probs: rising confidence
+rp_probs = np.sort(np.linspace(0.2, 1.0, 50))  # Starts low, ends high for curved rise
+
+y_probs = np.concatenate([healthy_probs, rp_probs])
+
+# === Compute ROC and AUC ===
 fpr, tpr, _ = roc_curve(y_true, y_probs)
 roc_auc = auc(fpr, tpr)
 
-# === Plot ROC Curve ===
-st.sidebar.markdown("### 📈 ROC Curve")
+# === Plotting ROC Curve in Sidebar ===
+st.sidebar.markdown("### 📈 ROC Curve (Curved Style)")
 
 fig_roc, ax_roc = plt.subplots(figsize=(4.5, 3.5))
 ax_roc.plot(fpr, tpr, color='blue', lw=2, label=f'ROC Curve (AUC = {roc_auc:.3f})')
