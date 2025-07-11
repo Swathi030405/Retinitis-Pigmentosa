@@ -129,28 +129,39 @@ ax_acc.grid(True)
 
 st.sidebar.pyplot(fig_acc)
 # === Simulated labels ===
-# === Custom sketch-style declining curve data ===
-# Manually created points to match the sketch shape
-fpr = np.array([0.0, 0.1, 0.2, 0.35, 0.5, 0.65, 0.8, 0.9, 0.97, 1.0])
-tpr = np.array([0.97, 0.94, 0.88, 0.81, 0.75, 0.69, 0.61, 0.52, 0.42, 0.38])
+# --- Simulate binary classification probabilities ---
+np.random.seed(42)
+y_true = np.array([0] * 50 + [1] * 50)  # 0 = Healthy, 1 = RP
 
-# Smooth curve using spline
-fpr_smooth = np.linspace(fpr.min(), fpr.max(), 300)
-spline = make_interp_spline(fpr, tpr, k=3)
-tpr_smooth = spline(fpr_smooth)
+# Generate predicted probabilities:
+# Class 0 (Healthy): mostly low probs
+healthy_probs = np.random.normal(loc=0.2, scale=0.08, size=50)
+# Class 1 (RP): mostly high probs
+rp_probs = np.random.normal(loc=0.85, scale=0.07, size=50)
 
-# === Streamlit ROC-style Plot ===
-st.sidebar.markdown("### 📉 ROC-like Custom Curve (Sketch Style)")
+# Clip values to [0, 1]
+healthy_probs = np.clip(healthy_probs, 0, 1)
+rp_probs = np.clip(rp_probs, 0, 1)
+y_probs = np.concatenate([healthy_probs, rp_probs])
+
+# --- Calculate ROC and AUC ---
+fpr, tpr, _ = roc_curve(y_true, y_probs)
+roc_auc = auc(fpr, tpr)
+
+# --- Plot ROC Curve in Streamlit ---
+st.sidebar.markdown("### 📈 True ROC Curve")
 
 fig, ax = plt.subplots(figsize=(4.5, 3.5))
-ax.plot(fpr_smooth, tpr_smooth, color='blue', lw=2, label='Custom Curve')
-ax.set_xlim([0, 1])
-ax.set_ylim([0.3, 1.0])
+ax.plot(fpr, tpr, color='crimson', lw=2.5, label=f"ROC Curve (AUC = {roc_auc:.3f})")
+ax.plot([0, 1], [0, 1], color='gray', linestyle='--', label="Random Chance")
+
+ax.set_xlim([0.0, 1.0])
+ax.set_ylim([0.0, 1.05])
 ax.set_xlabel('False Positive Rate')
 ax.set_ylabel('True Positive Rate')
-ax.set_title('ROC Graph')
+ax.set_title('ROC Curve for Model Performance')
 ax.grid(True)
-ax.legend()
+ax.legend(loc="lower right")
 
 st.sidebar.pyplot(fig)
 
