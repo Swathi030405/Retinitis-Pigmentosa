@@ -89,7 +89,7 @@ for i in [45, 49]:
     ax_acc.text(epochs[i], train_acc[i] + 0.001, f"{train_acc[i]*100:.2f}%", fontsize=6, ha='center')
     ax_acc.text(epochs[i], val_acc[i] - 0.003, f"{val_acc[i]*100:.2f}%", fontsize=6, ha='center')
 
-ax_acc.set_ylim(0.1, 1.0)
+ax_acc.set_ylim(0.5, 1.0)
 ax_acc.set_xlim(1, 50)
 ax_acc.set_xlabel('Epoch')
 ax_acc.set_ylabel('Accuracy')
