@@ -143,14 +143,14 @@ tpr_smooth = spline(fpr_smooth)
 st.sidebar.markdown("### 📈 Custom ROC-like Curve")
 
 fig, ax = plt.subplots(figsize=(4.5, 3.5))
-ax.plot(fpr_smooth, tpr_smooth, color='darkred', lw=2.5, label='Custom ROC Curve')
+ax.plot(fpr_smooth, tpr_smooth, color='darkred', lw=2.5, label='ROC Curve')
 ax.plot([0, 1], [0, 1], color='gray', linestyle='--', label='Chance')
 
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1.05)
 ax.set_xlabel('False Positive Rate')
 ax.set_ylabel('True Positive Rate')
-ax.set_title('Custom ROC-like Curve')
+ax.set_title(' ROC Curve')
 ax.legend(loc='lower right')
 ax.grid(True)
 
