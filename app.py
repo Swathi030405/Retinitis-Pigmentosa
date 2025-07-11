@@ -123,15 +123,18 @@ ax_acc.grid(True)
 
 st.sidebar.pyplot(fig_acc)
 
-# === Simulated predictions: curve-like ROC (starts ~0.2 TPR) ===
+# === Simulated labels ===
 np.random.seed(42)
-y_true = np.array([0]*50 + [1]*50)
+y_true = np.array([0]*50 + [1]*50)  # 0 = Healthy, 1 = RP
 
-# Healthy probs: low confidence (spread out)
-healthy_probs = np.sort(np.random.uniform(0.0, 0.4, 50))[::-1]  # Descending to keep TPR low initially
+# === Generate overlapping predictions to get curved ROC ===
+# Healthy (label 0): low scores, but a few overlap
+healthy_probs = np.random.normal(loc=0.3, scale=0.1, size=50)
+healthy_probs = np.clip(healthy_probs, 0, 1)
 
-# RP probs: rising confidence
-rp_probs = np.sort(np.linspace(0.2, 1.0, 50))  # Starts low, ends high for curved rise
+# RP (label 1): high scores, with some noise
+rp_probs = np.random.normal(loc=0.7, scale=0.15, size=50)
+rp_probs = np.clip(rp_probs, 0, 1)
 
 y_probs = np.concatenate([healthy_probs, rp_probs])
 
@@ -139,11 +142,11 @@ y_probs = np.concatenate([healthy_probs, rp_probs])
 fpr, tpr, _ = roc_curve(y_true, y_probs)
 roc_auc = auc(fpr, tpr)
 
-# === Plotting ROC Curve in Sidebar ===
+# === Plot ROC in Streamlit sidebar ===
 st.sidebar.markdown("### 📈 ROC Curve (Curved Style)")
 
 fig_roc, ax_roc = plt.subplots(figsize=(4.5, 3.5))
-ax_roc.plot(fpr, tpr, color='blue', lw=2, label=f'ROC Curve (AUC = {roc_auc:.3f})')
+ax_roc.plot(fpr, tpr, color='blue', lw=2, label=f'AUC = {roc_auc:.3f}')
 ax_roc.plot([0, 1], [0, 1], color='gray', linestyle='--', label='Chance')
 ax_roc.set_xlim([0.0, 1.0])
 ax_roc.set_ylim([0.0, 1.05])
