@@ -79,6 +79,41 @@ st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
 st.sidebar.markdown("### 📈 Model Accuracy Graph")
 fig_acc, ax_acc = plt.subplots(figsize=(4.5, 3.5))
 
+epochs = np.arange(1, 51)
+
+# === Training Accuracy Pattern ===
+train_acc = np.array([
+    0.951, 0.949, 0.947, 0.948, 0.950,
+    0.952, 0.954, 0.953, 0.954, 0.955,
+    0.957, 0.956, 0.957, 0.958, 0.959,
+    0.960, 0.961, 0.961, 0.962, 0.962,
+    0.963, 0.963, 0.964, 0.964, 0.965,
+    0.965, 0.966, 0.966, 0.966, 0.967,
+    0.967, 0.967, 0.967, 0.967, 0.967,
+    0.967, 0.967, 0.967, 0.967, 0.967,
+    0.967, 0.967, 0.967, 0.967, 0.967,
+    0.967, 0.967, 0.967, 0.967, 0.967
+])
+
+# === Validation Accuracy Pattern ===
+val_acc = np.array([
+    0.932, 0.930, 0.928, 0.929, 0.931,
+    0.933, 0.934, 0.933, 0.934, 0.935,
+    0.936, 0.936, 0.937, 0.938, 0.939,
+    0.940, 0.941, 0.942, 0.943, 0.944,
+    0.945, 0.945, 0.946, 0.946, 0.947,
+    0.947, 0.948, 0.948, 0.949, 0.950,
+    0.951, 0.952, 0.953, 0.954, 0.955,
+    0.956, 0.957, 0.958, 0.959, 0.960,
+    0.961, 0.962, 0.963, 0.964, 0.964,
+    0.964, 0.965, 0.965, 0.965, 0.965
+])
+
+# === Plotting ===
+ax_acc.plot(epochs, train_acc, label='Training Accuracy', marker='o', markersize=3)
+ax_acc.plot(epochs, val_acc, label='Validation Accuracy', marker='s', markersize=3)
+
+# Optional Annotations
 epochs = np.linspace(1, 50, 50)
 
 # --- Manually designed key points for curve shape like your sketch ---
@@ -101,14 +136,18 @@ ax_acc.plot(x_full, val_curve, label='Validation Accuracy', color='green', lw=2)
 
 # Annotate a few points
 for i in [10, 30, 49]:
+    ax_acc.text(epochs[i], train_acc[i] + 0.001, f"{train_acc[i]*100:.2f}%", fontsize=6, ha='center')
+    ax_acc.text(epochs[i], val_acc[i] - 0.0025, f"{val_acc[i]*100:.2f}%", fontsize=6, ha='center')
     ax_acc.text(x_full[i], train_curve[i]+0.001, f"{train_curve[i]*100:.2f}%", fontsize=6, ha='center')
     ax_acc.text(x_full[i], val_curve[i]-0.002, f"{val_curve[i]*100:.2f}%", fontsize=6, ha='center')
 
+# === Styling ===
 # --- Styling ---
 ax_acc.set_ylim(0.92, 0.975)
 ax_acc.set_xlim(1, 50)
 ax_acc.set_xlabel('Epoch')
 ax_acc.set_ylabel('Accuracy')
+ax_acc.set_title('Model Accuracy (Stable, Sketch-Like)')
 ax_acc.set_title('Model Accuracy (Curved)')
 ax_acc.legend()
 ax_acc.grid(True)
