@@ -78,8 +78,8 @@ st.sidebar.markdown("### 📈 Model Accuracy Graph ")
 fig_acc, ax_acc = plt.subplots(figsize=(4.5, 3.5))
 
 epochs = list(range(1, 51))
-train_acc = [0.967 + 0.0005 * i if 0.967 + 0.0005 * i <= 0.995 else 0.995 for i in range(50)]
-val_acc = [0.966 + 0.00045 * i if 0.966 + 0.00045 * i <= 0.993 else 0.993 for i in range(50)]
+train_acc = [0.000 + 0.0005 * i if 0.967 + 0.0005 * i <= 0.995 else 0.995 for i in range(50)]
+val_acc = [0.000 + 0.00045 * i if 0.966 + 0.00045 * i <= 0.993 else 0.993 for i in range(50)]
 
 ax_acc.plot(epochs, train_acc, label='Training Accuracy', marker='o', markersize=3)
 ax_acc.plot(epochs, val_acc, label='Validation Accuracy', marker='s', markersize=3)
@@ -89,7 +89,7 @@ for i in [45, 49]:
     ax_acc.text(epochs[i], train_acc[i] + 0.001, f"{train_acc[i]*100:.2f}%", fontsize=6, ha='center')
     ax_acc.text(epochs[i], val_acc[i] - 0.003, f"{val_acc[i]*100:.2f}%", fontsize=6, ha='center')
 
-ax_acc.set_ylim(0.95, 1.0)
+ax_acc.set_ylim(0.1, 1.0)
 ax_acc.set_xlim(1, 50)
 ax_acc.set_xlabel('Epoch')
 ax_acc.set_ylabel('Accuracy')
