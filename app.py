@@ -119,7 +119,7 @@ for i in [10, 30, 49]:
     ax_acc.text(epochs[i], val_acc[i] - 0.0025, f"{val_acc[i]*100:.2f}%", fontsize=6, ha='center')
 
 # === Styling ===
-ax_acc.set_ylim(0.92, 0.975)
+ax_acc.set_ylim(0.92, 1.0)
 ax_acc.set_xlim(1, 50)
 ax_acc.set_xlabel('Epoch')
 ax_acc.set_ylabel('Accuracy')
@@ -140,7 +140,7 @@ spline = make_interp_spline(fpr, tpr, k=3)
 tpr_smooth = spline(fpr_smooth)
 
 # === Plot in Streamlit Sidebar ===
-st.sidebar.markdown("### 📈 Custom ROC-like Curve")
+st.sidebar.markdown("### 📈 ROC Curve")
 
 fig, ax = plt.subplots(figsize=(4.5, 3.5))
 ax.plot(fpr_smooth, tpr_smooth, color='darkred', lw=2.5, label='ROC Curve')
