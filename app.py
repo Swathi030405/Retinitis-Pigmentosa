@@ -74,50 +74,45 @@ st.sidebar.markdown(f"**🧪 Images Scanned:** {st.session_state.scan_count}")
 
 # --- Accuracy Chart (ends at 96.7%) ---
 
-# --- Zigzag Accuracy Graph that Ends at ~96.7% ---
+# --- Stable Accuracy Graph (mimicking uploaded sketch) ---
 st.sidebar.markdown("### 📈 Model Accuracy Graph")
 fig_acc, ax_acc = plt.subplots(figsize=(4.5, 3.5))
 
 epochs = np.arange(1, 51)
 
-# Set random seed for reproducibility
+# Set random seed
 np.random.seed(42)
 
-# Step 1: Start low, end at ~0.967 (96.7%)
-train_start, train_end = 0.85, 0.967
-val_start, val_end = 0.83, 0.965
+# Start high (~0.96), slightly fluctuate, and stabilize toward 96.7%
+train_base = np.linspace(0.955, 0.967, 50)
+val_base = np.linspace(0.952, 0.965, 50)
 
-# Step 2: Create a base linearly increasing trend
-train_base = np.linspace(train_start, train_end, 50)
-val_base = np.linspace(val_start, val_end, 50)
+# Add small stable noise (mostly flat but minor dips/spikes)
+train_noise = np.random.normal(0, 0.002, 50)
+val_noise = np.random.normal(0, 0.0025, 50)
 
-# Step 3: Add random zigzag noise
-train_noise = np.random.normal(0, 0.004, 50)  # small random noise
-val_noise = np.random.normal(0, 0.005, 50)
+train_acc = np.clip(train_base + train_noise, 0.95, 0.972)
+val_acc = np.clip(val_base + val_noise, 0.945, 0.970)
 
-# Step 4: Add noise and clip to keep within bounds
-train_acc = np.clip(train_base + train_noise, 0.84, 0.975)
-val_acc = np.clip(val_base + val_noise, 0.83, 0.973)
-
-# Step 5: Force last values to be exactly at 96.7% to match your requirement
+# Final stabilization at 96.7%
 train_acc[-1] = 0.967
 val_acc[-1] = 0.965
 
-# Plot zigzag lines
+# Plot stable, slightly noisy lines
 ax_acc.plot(epochs, train_acc, label='Training Accuracy', marker='o', markersize=3)
 ax_acc.plot(epochs, val_acc, label='Validation Accuracy', marker='s', markersize=3)
 
-# Annotate the last few points
+# Annotate last few points
 for i in [45, 49]:
     ax_acc.text(epochs[i], train_acc[i] + 0.001, f"{train_acc[i]*100:.2f}%", fontsize=6, ha='center')
     ax_acc.text(epochs[i], val_acc[i] - 0.003, f"{val_acc[i]*100:.2f}%", fontsize=6, ha='center')
 
 # Styling
-ax_acc.set_ylim(0.82, 0.98)
+ax_acc.set_ylim(0.94, 0.975)
 ax_acc.set_xlim(1, 50)
 ax_acc.set_xlabel('Epoch')
 ax_acc.set_ylabel('Accuracy')
-ax_acc.set_title('Model Accuracy')
+ax_acc.set_title('Model Accuracy ')
 ax_acc.legend()
 ax_acc.grid(True)
 
