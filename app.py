@@ -129,39 +129,30 @@ ax_acc.grid(True)
 
 st.sidebar.pyplot(fig_acc)
 # === Simulated labels ===
-np.random.seed(42)
-y_true = np.array([0]*50 + [1]*50)  # 0 = Healthy, 1 = RP
+# === Custom sketch-style declining curve data ===
+# Manually created points to match the sketch shape
+fpr = np.array([0.0, 0.1, 0.2, 0.35, 0.5, 0.65, 0.8, 0.9, 0.97, 1.0])
+tpr = np.array([0.97, 0.94, 0.88, 0.81, 0.75, 0.69, 0.61, 0.52, 0.42, 0.38])
 
-# === Generate overlapping predictions to get curved ROC ===
-# Healthy (label 0): low scores, but a few overlap
-healthy_probs = np.random.normal(loc=0.3, scale=0.1, size=50)
-healthy_probs = np.clip(healthy_probs, 0, 1)
+# Smooth curve using spline
+fpr_smooth = np.linspace(fpr.min(), fpr.max(), 300)
+spline = make_interp_spline(fpr, tpr, k=3)
+tpr_smooth = spline(fpr_smooth)
 
-# RP (label 1): high scores, with some noise
-rp_probs = np.random.normal(loc=0.7, scale=0.15, size=50)
-rp_probs = np.clip(rp_probs, 0, 1)
+# === Streamlit ROC-style Plot ===
+st.sidebar.markdown("### 📉 ROC-like Custom Curve (Sketch Style)")
 
-y_probs = np.concatenate([healthy_probs, rp_probs])
+fig, ax = plt.subplots(figsize=(4.5, 3.5))
+ax.plot(fpr_smooth, tpr_smooth, color='blue', lw=2, label='Custom Curve')
+ax.set_xlim([0, 1])
+ax.set_ylim([0.3, 1.0])
+ax.set_xlabel('False Positive Rate')
+ax.set_ylabel('True Positive Rate')
+ax.set_title('ROC Graph')
+ax.grid(True)
+ax.legend()
 
-# === Compute ROC and AUC ===
-fpr, tpr, _ = roc_curve(y_true, y_probs)
-roc_auc = auc(fpr, tpr)
-
-# === Plot ROC in Streamlit sidebar ===
-st.sidebar.markdown("### 📈 ROC Curve (Curved Style)")
-
-fig_roc, ax_roc = plt.subplots(figsize=(4.5, 3.5))
-ax_roc.plot(fpr, tpr, color='blue', lw=2, label=f'AUC = {roc_auc:.3f}')
-ax_roc.plot([0, 1], [0, 1], color='gray', linestyle='--', label='Chance')
-ax_roc.set_xlim([0.0, 1.0])
-ax_roc.set_ylim([0.0, 1.05])
-ax_roc.set_xlabel('False Positive Rate')
-ax_roc.set_ylabel('True Positive Rate')
-ax_roc.set_title('Model ROC Curve')
-ax_roc.legend(loc='lower right')
-ax_roc.grid(True)
-
-st.sidebar.pyplot(fig_roc)
+st.sidebar.pyplot(fig)
 
 
 # --- Metrics Table for Healthy Images (20 images) ---
