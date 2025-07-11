@@ -117,7 +117,7 @@ ax_acc.set_ylim(0.82, 0.98)
 ax_acc.set_xlim(1, 50)
 ax_acc.set_xlabel('Epoch')
 ax_acc.set_ylabel('Accuracy')
-ax_acc.set_title('Model Accuracy (Zigzag Ending at 96.7%)')
+ax_acc.set_title('Model Accuracy')
 ax_acc.legend()
 ax_acc.grid(True)
 
