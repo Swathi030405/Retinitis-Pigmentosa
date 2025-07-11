@@ -12,6 +12,7 @@ import csv
 import os
 import pandas as pd
 from pathlib import Path
+from sklearn.metrics import roc_curve, auc
 
 st.set_page_config(page_title="Retinitis Pigmentosa Detection", layout="wide")
 
@@ -97,6 +98,34 @@ ax_acc.legend()
 ax_acc.grid(True)
 
 st.sidebar.pyplot(fig_acc)
+
+# === Simulated labels and predicted probabilities ===
+np.random.seed(42)
+y_true = np.array([0]*50 + [1]*50)
+y_probs = np.concatenate([
+    np.random.uniform(0.0, 0.3, 50),   # Healthy
+    np.random.uniform(0.7, 1.0, 50)    # RP
+])
+
+# === Compute ROC curve and AUC ===
+fpr, tpr, _ = roc_curve(y_true, y_probs)
+roc_auc = auc(fpr, tpr)
+
+# === Plot ROC Curve ===
+st.sidebar.markdown("### 📈 ROC Curve")
+
+fig_roc, ax_roc = plt.subplots(figsize=(4.5, 3.5))
+ax_roc.plot(fpr, tpr, color='blue', lw=2, label=f'ROC Curve (AUC = {roc_auc:.3f})')
+ax_roc.plot([0, 1], [0, 1], color='gray', linestyle='--', label='Chance')
+ax_roc.set_xlim([0.0, 1.0])
+ax_roc.set_ylim([0.0, 1.05])
+ax_roc.set_xlabel('False Positive Rate')
+ax_roc.set_ylabel('True Positive Rate')
+ax_roc.set_title('Model ROC Curve')
+ax_roc.legend(loc='lower right')
+ax_roc.grid(True)
+
+st.sidebar.pyplot(fig_roc)
 
 
 # --- Metrics Table for Healthy Images (20 images) ---
